@@ -20,7 +20,7 @@ services:
     runtime: node
     rootDir: backend
     buildCommand: npm install
-    startCommand: node server.js
+    startCommand: npm start
     envVars:
       - key: FRONTEND_URL
         value: https://autoagent-1-ea03.onrender.com

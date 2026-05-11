@@ -1,6 +1,9 @@
 import { spawn }
     from 'child_process';
 
+import path from 'path';
+import { GENERATED_AGENTS_DIR } from '../utils/paths.js';
+
 const TIMEOUT =
     parseInt(
         process.env.SANDBOX_TIMEOUT_MS
@@ -29,7 +32,7 @@ export function runAgent(
             */
 
             const agentPath =
-                `generated/agents/${agentFilename}`;
+                path.join(GENERATED_AGENTS_DIR, agentFilename);
 
             /*
               Spawn isolated process

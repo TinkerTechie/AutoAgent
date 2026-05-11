@@ -24,6 +24,12 @@ import { packageAgent }
 import { zipPackage }
     from './utils/zipPackage.js';
 
+import {
+    GENERATED_AGENTS_DIR,
+    GENERATED_PACKAGES_DIR,
+    CACHE_DIR
+} from './utils/paths.js';
+
 /*
   INSTALL DEPENDENCIES
 */
@@ -577,7 +583,7 @@ RULES:
     */
 
     const fullPath =
-        `generated/agents/${savedFile.filename}`;
+        path.join(GENERATED_AGENTS_DIR, savedFile.filename);
 
     fs.writeFileSync(
         fullPath,
@@ -630,7 +636,7 @@ async function packageGeneratedAgent(
         );
 
     const zipPath =
-        `./generated/packages/${packaged.folderName}.zip`;
+        path.join(GENERATED_PACKAGES_DIR, '..', 'packages', `${packaged.folderName}.zip`);
 
     await zipPackage(
         packaged.packagePath,
@@ -656,14 +662,8 @@ export async function runPipeline(
 ) {
 
     /*
-      CACHE SETUP
+      CACHE SETUP — use absolute path
     */
-
-    const CACHE_DIR =
-        path.join(
-            process.cwd(),
-            'cache'
-        );
 
     await fs.promises.mkdir(
         CACHE_DIR,

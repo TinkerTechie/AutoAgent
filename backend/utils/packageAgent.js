@@ -1,6 +1,6 @@
 import fs from 'fs';
-
 import path from 'path';
+import { GENERATED_PACKAGES_DIR } from './paths.js';
 
 export function packageAgent(
     spec,
@@ -16,13 +16,7 @@ export function packageAgent(
 
     const packagePath =
         path.join(
-
-            process.cwd(),
-
-            'generated',
-
-            'packages',
-
+            GENERATED_PACKAGES_DIR,
             folderName
         );
 

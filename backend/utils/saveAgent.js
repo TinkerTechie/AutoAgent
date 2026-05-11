@@ -1,4 +1,6 @@
 import fs from 'fs';
+import path from 'path';
+import { GENERATED_AGENTS_DIR } from './paths.js';
 
 export function saveAgent(code) {
 
@@ -8,17 +10,13 @@ export function saveAgent(code) {
         .trim();
 
     const timestamp = Date.now();
+    const filename  = `agent_${timestamp}.py`;
+    const filePath  = path.join(GENERATED_AGENTS_DIR, filename);
 
-    const filename =
-        `agent_${timestamp}.py`;
-
-    const path =
-        `./generated/agents/${filename}`;
-
-    fs.writeFileSync(path, cleaned);
+    fs.writeFileSync(filePath, cleaned);
 
     return {
         filename,
-        path
+        path: filePath
     };
 }

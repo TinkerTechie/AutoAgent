@@ -1,10 +1,20 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import dotenv from 'dotenv';
 
 import { runPipeline } from './pipeline.js';
+import {
+    ensureDirectories,
+    GENERATED_AGENTS_DIR,
+    GENERATED_PACKAGES_DIR
+} from './utils/paths.js';
 
 dotenv.config();
+
+// Create required runtime directories (generated/agents, generated/packages, cache)
+// Critical on Render where these gitignored folders don't exist
+ensureDirectories();
 
 const app = express();
 
@@ -27,89 +37,48 @@ app.use(cors({
 
 app.use(express.json());
 
+/* ── SSE BUILD PIPELINE ── */
 app.get('/api/build', async (req, res) => {
 
     const { prompt } = req.query;
 
     if (!prompt) {
-        return res.status(400).json({
-            error: 'prompt required'
-        });
+        return res.status(400).json({ error: 'prompt required' });
     }
 
-    res.setHeader(
-        'Content-Type',
-        'text/event-stream'
-    );
-
-    res.setHeader(
-        'Cache-Control',
-        'no-cache'
-    );
-
-    res.setHeader(
-        'Connection',
-        'keep-alive'
-    );
-
+    res.setHeader('Content-Type',  'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection',    'keep-alive');
     res.flushHeaders();
 
     const emit = (stage, data) => {
-        res.write(
-            `event: ${stage}\ndata: ${JSON.stringify(data)}\n\n`
-        );
+        res.write(`event: ${stage}\ndata: ${JSON.stringify(data)}\n\n`);
     };
 
     try {
-
         await runPipeline(prompt, emit);
-
-        emit('done', {
-            success: true
-        });
-
+        emit('done', { success: true });
     } catch (e) {
-
-        emit('error', {
-            message: String(e)
-        });
-
+        emit('error', { message: String(e) });
     } finally {
-
         res.end();
-
     }
 });
-import path from 'path';
 
-app.get(
-    '/api/download/:filename',
-    (req, res) => {
+/* ── DOWNLOAD AGENT .PY ── */
+app.get('/api/download/:filename', (req, res) => {
+    const filePath = path.join(GENERATED_AGENTS_DIR, req.params.filename);
+    res.download(filePath);
+});
 
-        const filePath = path.join(
-            process.cwd(),
-            'generated',
-            'agents',
-            req.params.filename
-        );
+/* ── DOWNLOAD PACKAGE .ZIP ── */
+app.get('/api/package/:filename', (req, res) => {
+    const filePath = path.join(GENERATED_PACKAGES_DIR, req.params.filename);
+    res.download(filePath);
+});
 
-        res.download(filePath);
-    }
-);
-app.get(
-    '/api/package/:filename',
-    (req, res) => {
-
-        const filePath = path.join(
-            process.cwd(),
-            'generated',
-            'packages',
-            req.params.filename
-        );
-
-        res.download(filePath);
-    }
-);
+/* ── HEALTH CHECK ── */
+app.get('/health', (_, res) => res.json({ status: 'ok' }));
 
 const PORT = process.env.PORT || 3001;
 
