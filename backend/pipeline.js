@@ -587,6 +587,8 @@ RULES:
 
         iteration,
 
+        code: fixedCode,
+
         preview:
             fixedCode.slice(0, 1000)
     });

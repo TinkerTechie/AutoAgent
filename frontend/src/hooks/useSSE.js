@@ -165,7 +165,7 @@ export function useSSE() {
 
                 es.addEventListener(
 
-                    'code',
+                    'code_result',
 
                     e => {
 
@@ -253,10 +253,18 @@ export function useSSE() {
                         );
 
                         /*
-                          Update code preview
+                          Update code with fixed version
                         */
 
                         if (
+                            data.code
+                        ) {
+
+                            setCode(
+                                data.code
+                            );
+
+                        } else if (
                             data.preview
                         ) {
 

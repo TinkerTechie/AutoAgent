@@ -123,40 +123,52 @@ export default function App() {
 
       {/* HEADER */}
 
-      <div
-        style={{
-          marginBottom: 24
-        }}
-      >
+      <div style={{
+        textAlign: 'center',
+        padding: '40px 24px 32px',
+        marginBottom: 8,
+        borderBottom: '1px solid #1e293b',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
 
-        <h1
-          style={{
+        {/* Ambient glow behind title */}
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -60%)',
+          width: 400,
+          height: 120,
+          background: 'radial-gradient(ellipse, rgba(99,102,241,0.18) 0%, transparent 70%)',
+          pointerEvents: 'none'
+        }} />
 
-            fontSize: 32,
-
-            fontWeight: 700,
-
-            marginBottom: 8
-          }}
-        >
-
+        {/* Main title */}
+        <h1 style={{
+          fontSize: 52,
+          fontWeight: 800,
+          margin: '0 0 12px',
+          letterSpacing: '-1.5px',
+          lineHeight: 1.1,
+          background: 'linear-gradient(135deg, #fff 30%, #a5b4fc 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text'
+        }}>
           AgentForge
         </h1>
 
-        <p
-          style={{
-
-            color: '#94a3b8',
-
-            maxWidth: 700,
-
-            lineHeight: 1.6
-          }}
-        >
-
+        {/* Tagline */}
+        <p style={{
+          color: '#64748b',
+          fontSize: 15,
+          maxWidth: 560,
+          margin: '0 auto',
+          lineHeight: 1.6
+        }}>
           Describe an AI agent and watch the system design,
           code, test, self-heal, and package it automatically.
-
         </p>
       </div>
 
