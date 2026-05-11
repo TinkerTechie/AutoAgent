@@ -1,6 +1,6 @@
 services:
   # ── Frontend (Static Site) ──────────────────────────────
-  - type: web
+  - type: static
     name: autoagent-frontend
     runtime: static
     buildCommand: cd frontend && npm install && npm run build
