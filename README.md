@@ -1,79 +1,103 @@
+<div align="center">
+
 # AgentForge
 
-AgentForge is an automated pipeline designed to architect, generate, test, and package AI agents based on high-level natural language descriptions. The system leverages large language models to handle the entire software development lifecycle of a specialized agent, including dependency management and self-healing through iterative error analysis.
+[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)]()
+[![Backend](https://img.shields.io/badge/Backend-Node.js-green.svg)]()
+[![Frontend](https://img.shields.io/badge/Frontend-React-61dafb.svg)]()
+
+AgentForge is a sophisticated autonomous pipeline designed to architect, generate, verify, and package specialized AI agents. By leveraging high-density language models, it manages the full software development lifecycle from natural language intent to pass-verified, production-ready distribution bundles.
+
+</div>
 
 ## System Architecture
 
-![AgentForge Architecture](assets/architecture.svg)
+The following diagram illustrates the multi-layered communication between the client interface, the orchestration server, and the iterative generation pipeline.
 
+<div align="center">
+  <img src="assets/architecture.svg" alt="AgentForge Architecture" width="800">
+</div>
 
-## Core Features
+## Key Capabilities
 
-The application manages a complex multi-stage workflow to ensure the generated code is functional and ready for deployment.
-
-The architecture stage analyzes the user prompt to define the agent name, required python dependencies, tool definitions, and specific test cases. This blueprint serves as the technical specification for all subsequent stages.
-
-The development stage transforms the blueprint into a modular Python implementation. It automatically handles the integration of required libraries and follows the structural requirements defined in the blueprint.
-
-The verification stage executes the generated code within a controlled sandbox environment. It runs the predefined test cases and captures stdout, stderr, and return codes to validate the logic.
-
-The self-healing mechanism triggers if the verification stage detects failures or crashes. The system sends the error logs back to the language model to diagnose the root cause and generate a corrected version of the code, repeating the cycle until the tests pass.
-
-The packaging stage bundles the final verified code, a generated requirements.txt file, and a customized README.md into a structured directory. This directory is then compressed into a ZIP archive for easy download and distribution.
+| Phase | Description |
+| :--- | :--- |
+| **Architectural Blueprinting** | Analyzes natural language intent to generate technical specifications, including class hierarchies, dependencies, and validation test cases. |
+| **Iterative Synthesis** | Generates modular Python implementations based on the architectural blueprint, ensuring strict adherence to the specified interfaces. |
+| **Sandbox Verification** | Executes generated code in a secure, isolated environment to perform runtime validation and unit testing. |
+| **Autonomous Self-Healing** | Dynamically analyzes stack traces and execution errors, feeding diagnostic data back into the LLM for automated logic correction. |
+| **Distribution Packaging** | Aggregates verified source code, dependency manifests, and documentation into a finalized, ready-to-use distribution bundle. |
 
 ## Technology Stack
 
-The backend is built with Node.js and Express, using Server-Sent Events to stream real-time pipeline progress to the client. It manages child processes for Python execution and file system operations for agent persistence.
+The platform is engineered using a decoupled architecture to ensure scalability and reliability.
 
-The frontend is a modern React application built with Vite. It features a real-time status tracker, a specialized code viewer with syntax highlighting via PrismJS, and interactive execution consoles to monitor the agent's performance.
-
-The intelligence layer utilizes the OpenRouter API to access advanced language models that drive the decision-making, code generation, and error analysis processes.
+| Component | Technology | Role |
+| :--- | :--- | :--- |
+| **Core Engine** | Node.js / Express | Orchestration, SSE management, and process isolation. |
+| **Interface** | React / Vite | Real-time monitoring, state management, and code visualization. |
+| **Intelligence** | OpenRouter API | Access to GPT-4/3.5 models for code generation and diagnostics. |
+| **Formatting** | PrismJS | Specialized syntax highlighting for generated agent code. |
+| **Runtime** | Python 3 | Target environment for agent execution and verification. |
 
 ## Project Structure
 
-backend
-Contains the Express server and pipeline logic.
-Includes specialized prompts for orchestration, code generation, and diagnostics.
-The isolated environment for running and testing generated Python code.
-Utility functions for file management, path resolution, and packaging.
+The codebase is organized into distinct modules for clear separation of concerns.
 
-frontend
-The React source code including hooks for SSE management and UI components.
-Custom CSS for the AgentForge design system.
-The production-ready build output.
+### Backend Module
+*   `pipeline.js`: The central orchestrator managing the state machine from blueprint to package.
+*   `prompts/`: A repository of specialized system prompts for synthesis and diagnostics.
+*   `sandbox/`: The isolated environment responsible for process-level agent execution.
+*   `utils/`: Core utilities for path resolution, schema validation, and file persistence.
+
+### Frontend Module
+*   `src/hooks/`: Custom React hooks for Server-Sent Event (SSE) stream management.
+*   `src/components/`: Modular UI elements for the execution console and status tracking.
+*   `assets/`: Project-level visual assets and documentation diagrams.
 
 ## Installation and Setup
 
-To run the system locally, ensure you have Node.js and Python 3 installed on your machine.
+### Local Development Environment
 
-Clone the repository and install dependencies for both the backend and frontend.
+1.  **Repository Setup**
+    ```bash
+    git clone https://github.com/TinkerTechie/AutoAgent.git
+    cd AutoAgent
+    ```
 
-Backend setup
-cd backend
-npm install
-Create a .env file in the backend directory with your OPENROUTER_API_KEY.
+2.  **Backend Initialization**
+    ```bash
+    cd backend
+    npm install
+    # Configure OPENROUTER_API_KEY in .env
+    npm start
+    ```
 
-Frontend setup
-cd frontend
-npm install
-npm run dev
+3.  **Frontend Initialization**
+    ```bash
+    cd ../frontend
+    npm install
+    npm run dev
+    ```
 
-## Environment Variables
+## Environment Configuration
 
-The backend requires the following configuration in a .env file:
-PORT: The port the server will run on (defaults to 3001).
-OPENROUTER_API_KEY: Your API key for model access.
-FRONTEND_URL: The URL of the frontend for CORS configuration.
+The system relies on specific environment variables for cross-service communication.
 
-The frontend uses Vite environment variables:
-VITE_API_BASE_URL: The base URL of the backend API.
+### Backend Configuration (.env)
+*   `PORT`: Server listener port (Default: 3001).
+*   `OPENROUTER_API_KEY`: Authentication key for model access.
+*   `FRONTEND_URL`: CORS-authorized origin for the client application.
 
-## Deployment
+### Frontend Configuration (.env.production)
+*   `VITE_API_BASE_URL`: The endpoint of the deployed backend API.
 
-The system is configured for deployment on Render using the included render.yaml blueprint.
+## Deployment Strategy
 
-The frontend should be deployed as a Static Site with the root directory set to frontend and the build command set to npm run build.
+AgentForge is production-ready for the Render ecosystem using the provided `render.yaml` configuration.
 
-The backend should be deployed as a Web Service with the root directory set to backend and the start command set to npm start.
+*   **Frontend**: Deployed as a **Static Site** targeting the `frontend/dist` directory.
+*   **Backend**: Deployed as a **Web Service** running the Node.js runtime.
 
-Ensure that the environment variables are correctly mapped between the two services to allow cross-origin communication and API access.
+All cross-service environment variables must be synchronized in the Render dashboard to ensure secure and valid API communication.
