@@ -5,23 +5,57 @@ AgentForge is an automated pipeline designed to architect, generate, test, and p
 ## System Architecture
 
 ```mermaid
-graph TD
-    User[User Input] --> Frontend[React Frontend]
-    Frontend --> Backend[Express API Server]
-    Backend --> Orchestrator[Pipeline Orchestrator]
-    
-    subgraph "Pipeline Execution"
-        Orchestrator --> Blueprint[Architect: Blueprint Generation]
-        Blueprint --> CodeGen[Developer: Python Code Generation]
-        CodeGen --> Sandbox[Sandbox: Execution & Testing]
-        Sandbox --> ErrorAnalyst[Analyst: Error Diagnostics]
-        ErrorAnalyst --> SelfHeal[Self-Healing Loop]
-        SelfHeal --> CodeGen
-        Sandbox --> Packager[Packager: ZIP & README Generation]
+graph TB
+    subgraph "Client Layer"
+        User((User))
+        ReactApp[React SPA]
     end
+
+    subgraph "Application Layer"
+        ExpressServer[Express API Gateway]
+        SSE[SSE Event Stream]
+    end
+
+    subgraph "Agent Engineering Pipeline"
+        Orchestrator{Orchestrator}
+        Architect[Architect: Blueprinting]
+        Developer[Developer: Code Synthesis]
+        Sandbox[Sandbox: Python Runtime]
+        Analyst[Analyst: Error Diagnosis]
+        Packager[Packager: Distribution]
+    end
+
+    subgraph "External & Persistence"
+        OpenRouterAPI((OpenRouter API))
+        DiskStore[(Local Storage: .py/.zip)]
+    end
+
+    %% Flow Connections
+    User -->|Prompts| ReactApp
+    ReactApp -->|REST API| ExpressServer
+    ExpressServer -->|Status Updates| SSE
+    SSE -->|Real-time UI| ReactApp
+
+    ExpressServer --> Orchestrator
+    Orchestrator --> Architect
+    Architect <-->|LLM Context| OpenRouterAPI
+    Architect -->|Blueprint JSON| Developer
+
+    Developer <-->|LLM Context| OpenRouterAPI
+    Developer -->|Source Code| Sandbox
+
+    Sandbox -->|Execution Logs| Analyst
+    Analyst -->|Feedback Loop| Developer
     
-    Packager --> User
-    Backend --> OpenRouter[OpenRouter API]
+    Sandbox -->|Success Status| Packager
+    Packager -->|Final Bundle| DiskStore
+    DiskStore -->|Download Link| ReactApp
+
+    %% Styling
+    style User fill:#f9f,stroke:#333,stroke-width:2px
+    style OpenRouterAPI fill:#bbf,stroke:#333,stroke-width:2px
+    style DiskStore fill:#dfd,stroke:#333,stroke-width:2px
+    style Orchestrator fill:#ffd,stroke:#333,stroke-width:4px
 ```
 
 ## Core Features
