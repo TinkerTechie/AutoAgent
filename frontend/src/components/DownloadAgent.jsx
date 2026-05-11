@@ -1,3 +1,5 @@
+import { API_BASE } from '../config.js';
+
 export default function DownloadAgent({
     filename
 }) {
@@ -5,7 +7,7 @@ export default function DownloadAgent({
     if (!filename) return null;
 
     const url =
-        `http://localhost:3001/api/download/${filename}`;
+        `${API_BASE}/api/download/${filename}`;
 
     return (
 

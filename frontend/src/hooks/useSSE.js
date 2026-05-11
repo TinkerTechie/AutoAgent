@@ -5,6 +5,8 @@ import {
     useEffect
 } from 'react';
 
+import { API_BASE } from '../config.js';
+
 export function useSSE() {
 
     const [events, setEvents] =
@@ -110,7 +112,7 @@ export function useSSE() {
                 */
 
                 const url =
-                    `http://localhost:3001/api/build?prompt=${encodeURIComponent(prompt)}`;
+                    `${API_BASE}/api/build?prompt=${encodeURIComponent(prompt)}`;
 
                 const es =
                     new EventSource(url);

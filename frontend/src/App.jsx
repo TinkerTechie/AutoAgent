@@ -1,6 +1,8 @@
 import { useState, useEffect }
   from 'react';
 
+import { API_BASE } from './config.js';
+
 import { useSSE }
   from './hooks/useSSE';
 
@@ -257,7 +259,7 @@ export default function App() {
                 <a
 
                   href={
-                    `http://localhost:3001/download/${downloadZip}`
+                    `${API_BASE}/api/package/${downloadZip}`
                   }
 
                   target="_blank"
