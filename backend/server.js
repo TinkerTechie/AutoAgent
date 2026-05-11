@@ -10,8 +10,9 @@ const app = express();
 
 const ALLOWED_ORIGINS = [
     'http://localhost:5173',
-    'http://localhost:4173',          // vite preview
-    process.env.FRONTEND_URL,         // set this on Render dashboard
+    'http://localhost:4173',
+    'https://autoagent-1-ea03.onrender.com',  // deployed frontend
+    process.env.FRONTEND_URL,                  // override via Render env var
 ].filter(Boolean);
 
 app.use(cors({

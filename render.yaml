@@ -1,0 +1,28 @@
+services:
+  # ── Frontend (Static Site) ──────────────────────────────
+  - type: web
+    name: autoagent-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://autoagent-a4xr.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  # ── Backend (Node.js API) ───────────────────────────────
+  - type: web
+    name: autoagent-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: FRONTEND_URL
+        value: https://autoagent-1-ea03.onrender.com
+      - key: NODE_ENV
+        value: production

@@ -82,9 +82,10 @@ function installDeps(
 
     } catch (err) {
 
-        throw new Error(
-
-            `Dependency installation failed: ${pkgs}`
+        // On Render free tier pip install may fail due to sandbox restrictions.
+        // Log a warning but let the pipeline continue — stdlib packages still work.
+        console.warn(
+            `[warn] Dependency install failed for: ${pkgs} — continuing anyway`
         );
     }
 }
