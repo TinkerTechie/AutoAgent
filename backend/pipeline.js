@@ -1,3 +1,8 @@
+import fs from 'fs';
+import path from 'path';
+import { execSync }
+    from 'child_process';
+
 import { askLLM }
     from './services/llmService.js';
 
@@ -13,15 +18,143 @@ import { saveAgent }
 import { runAgent }
     from './sandbox/runner.js';
 
-import { getTestInput }
-    from './utils/testInputs.js';
-
 import { packageAgent }
     from './utils/packageAgent.js';
 
 import { zipPackage }
     from './utils/zipPackage.js';
 
+/*
+  INSTALL DEPENDENCIES
+*/
+
+function installDeps(
+    dependencies
+) {
+
+    if (
+        !dependencies ||
+        dependencies.length === 0
+    ) {
+
+        return;
+    }
+
+    /*
+      Remove dangerous input
+    */
+
+    const safeDeps =
+        dependencies.filter(
+
+            dep =>
+
+                typeof dep === 'string' &&
+
+                !dep.includes('&') &&
+
+                !dep.includes(';') &&
+
+                !dep.includes('|')
+        );
+
+    if (
+        safeDeps.length === 0
+    ) {
+
+        return;
+    }
+
+    const pkgs =
+        safeDeps.join(' ');
+
+    try {
+
+        execSync(
+
+            `python3 -m pip install ${pkgs} --quiet`,
+
+            {
+                timeout: 60000,
+                stdio: 'ignore'
+            }
+        );
+
+    } catch (err) {
+
+        throw new Error(
+
+            `Dependency installation failed: ${pkgs}`
+        );
+    }
+}
+
+/*
+  CREATE TEST CSV FILES
+*/
+
+function ensureTestFiles() {
+
+    /*
+      Happy path
+    */
+
+    if (
+        !fs.existsSync(
+            'example.csv'
+        )
+    ) {
+
+        fs.writeFileSync(
+
+            'example.csv',
+
+            `name,age,salary
+Alice,25,50000
+Bob,30,60000
+Charlie,28,55000`
+        );
+    }
+
+    /*
+      Empty CSV
+    */
+
+    if (
+        !fs.existsSync(
+            'empty.csv'
+        )
+    ) {
+
+        fs.writeFileSync(
+
+            'empty.csv',
+
+            `name,age,salary`
+        );
+    }
+
+    /*
+      Edge case CSV
+    */
+
+    if (
+        !fs.existsSync(
+            'edge_case.csv'
+        )
+    ) {
+
+        fs.writeFileSync(
+
+            'edge_case.csv',
+
+            `name,age,salary
+Alice,,50000
+Bob,30,
+Charlie,28,55000`
+        );
+    }
+}
 /*
   STEP 1
   BLUEPRINT GENERATION
@@ -80,7 +213,7 @@ async function getBlueprint(
 
 /*
   STEP 2
-  CODE GENERATION
+  GENERATE CODE
 */
 
 async function generateCode(
@@ -96,18 +229,10 @@ async function generateCode(
             '💻 Writing agent code...'
     });
 
-    /*
-      LOAD CODEGEN PROMPT
-    */
-
     const codegenPrompt =
         loadPrompt(
             './prompts/codegen.txt'
         );
-
-    /*
-      GENERATE CODE
-    */
 
     let generatedCode =
         await askLLM(
@@ -133,7 +258,7 @@ async function generateCode(
         );
 
     /*
-      CLEAN MARKDOWN
+      Remove markdown
     */
 
     generatedCode =
@@ -157,7 +282,7 @@ async function generateCode(
             .trim();
 
     /*
-      SAVE GENERATED FILE
+      Save file
     */
 
     const savedFile =
@@ -166,10 +291,6 @@ async function generateCode(
         );
 
     emit('saved', savedFile);
-
-    /*
-      PREVIEW
-    */
 
     emit('code_result', {
 
@@ -194,10 +315,10 @@ async function generateCode(
 
 /*
   STEP 3
-  EXECUTE AGENT
+  RUN TESTS
 */
 
-async function executeAgent(
+async function runTests(
     blueprint,
     savedFile,
     emit
@@ -205,33 +326,282 @@ async function executeAgent(
 
     emit('status', {
 
-        stage: 'execution',
+        stage: 'testing',
 
         message:
-            '🚀 Running generated agent...'
+            '🧪 Running test cases...'
     });
 
-    const testInput =
-        getTestInput(
-            blueprint
+    /*
+      Ensure CSV test files exist
+    */
+
+    ensureTestFiles();
+
+    const results = [];
+
+    for (
+        const testCase of
+        (blueprint.test_cases || [])
+    ) {
+
+        emit('test_start', {
+
+            name:
+                testCase.name
+        });
+
+        const result =
+            await runAgent(
+
+                savedFile.filename,
+
+                testCase.input || {}
+            );
+
+        let passed = false;
+
+        /*
+          Expected success
+        */
+
+        if (
+            result.success &&
+            testCase.should_pass
+        ) {
+
+            const outputStr =
+                JSON.stringify(
+                    result.output
+                );
+
+            passed =
+                outputStr.includes(
+                    testCase.expected_output_contains
+                );
+        }
+
+        /*
+          Expected failure
+        */
+
+        else if (
+            !testCase.should_pass
+        ) {
+
+            const outputStr =
+                JSON.stringify(
+                    result.output
+                );
+
+            passed =
+                outputStr.includes(
+                    testCase.expected_output_contains
+                );
+        }
+        const testResult = {
+
+            name:
+                testCase.name,
+
+            passed,
+
+            output:
+                result.output,
+
+            stderr:
+                result.stderr,
+
+            exitCode:
+                result.exitCode
+        };
+
+        results.push(
+            testResult
         );
 
-    const output =
-        await runAgent(
-            savedFile.filename,
-            testInput
+        emit(
+            'test_result',
+            testResult
+        );
+    }
+
+    const allPassed =
+        results.every(
+            result =>
+                result.passed
         );
 
-    emit('execution_result', {
-        output
+    emit('tests_done', {
+
+        allPassed,
+
+        results
     });
 
-    return output;
+    return {
+
+        results,
+
+        allPassed
+    };
 }
 
 /*
   STEP 4
-  PACKAGE AGENT
+  SELF HEAL
+*/
+
+async function fixCode(
+    code,
+    blueprint,
+    failedTests,
+    savedFile,
+    emit,
+    iteration
+) {
+
+    const maxIter =
+        parseInt(
+            process.env.MAX_FIX_ITERATIONS
+        ) || 3;
+
+    if (
+        iteration > maxIter
+    ) {
+
+        emit('fix_gave_up', {
+
+            iteration,
+
+            reason:
+                'max iterations reached'
+        });
+
+        return {
+
+            fixedCode: code,
+
+            savedFile
+        };
+    }
+
+    emit('status', {
+
+        stage: 'fixing',
+
+        message:
+            `🔧 Fixing errors (${iteration}/${maxIter})...`
+    });
+
+    const errorContext =
+        failedTests
+
+            .map(test =>
+
+                `
+Test:
+${test.name}
+
+Exit Code:
+${test.exitCode}
+
+Stderr:
+${test.stderr}
+
+Output:
+${JSON.stringify(
+                    test.output,
+                    null,
+                    2
+                )}
+`
+            )
+
+            .join('\n---\n');
+
+    const fixPrompt = `
+This Python AI agent failed its tests.
+
+CURRENT CODE:
+
+${code}
+
+FAILED TESTS:
+
+${errorContext}
+
+TASK:
+
+Fix the code so the tests pass.
+
+RULES:
+
+- Output ONLY Python code
+- No markdown
+- No explanations
+- Preserve the __main__ block
+- Keep same function names
+- Maintain compatibility
+`;
+
+    let fixedCode =
+        await askLLM(
+            fixPrompt,
+            ''
+        );
+
+    fixedCode =
+        fixedCode
+
+            .replace(
+                /^```python\n?/,
+                ''
+            )
+
+            .replace(
+                /^```\n?/,
+                ''
+            )
+
+            .replace(
+                /\n?```$/,
+                ''
+            )
+
+            .trim();
+
+    /*
+      Overwrite file
+    */
+
+    const fullPath =
+        `generated/agents/${savedFile.filename}`;
+
+    fs.writeFileSync(
+        fullPath,
+        fixedCode
+    );
+
+    emit('fix_result', {
+
+        iteration,
+
+        preview:
+            fixedCode.slice(0, 1000)
+    });
+
+    return {
+
+        fixedCode,
+
+        savedFile
+    };
+}
+
+/*
+  STEP 5
+  PACKAGE
 */
 
 async function packageGeneratedAgent(
@@ -282,7 +652,118 @@ export async function runPipeline(
     emit
 ) {
 
+    /*
+      CACHE SETUP
+    */
+
+    const CACHE_DIR =
+        path.join(
+            process.cwd(),
+            'cache'
+        );
+
+    await fs.promises.mkdir(
+        CACHE_DIR,
+        {
+            recursive: true
+        }
+    );
+
+    const cacheKey =
+        prompt
+
+            .toLowerCase()
+
+            .replace(/\s+/g, '_')
+
+            .replace(/[^a-z0-9_]/g, '')
+
+            .slice(0, 60);
+
+    const cachePath =
+        path.join(
+            CACHE_DIR,
+            `${cacheKey}.json`
+        );
+
     try {
+
+        /*
+          RECORD EVENTS
+        */
+
+        const recordedEvents = [];
+
+        const emitAndRecord =
+            (
+                type,
+                data
+            ) => {
+
+                recordedEvents.push({
+                    type,
+                    data
+                });
+
+                emit(
+                    type,
+                    data
+                );
+            };
+
+        /*
+          USE CACHE
+        */
+
+        try {
+
+            if (
+                process.env.USE_CACHE === 'true'
+            ) {
+
+                const cached =
+                    JSON.parse(
+
+                        await fs.promises.readFile(
+                            cachePath,
+                            'utf8'
+                        )
+                    );
+
+                if (
+                    cached?.events
+                ) {
+
+                    for (
+                        const ev of
+                        cached.events
+                    ) {
+
+                        emit(
+                            ev.type,
+                            ev.data
+                        );
+
+                        await new Promise(
+
+                            resolve =>
+                                setTimeout(
+                                    resolve,
+                                    250
+                                )
+                        );
+                    }
+
+                    return;
+                }
+            }
+
+        } catch (_) {
+
+            /*
+              No cache found
+            */
+        }
 
         /*
           STEP 1
@@ -292,54 +773,132 @@ export async function runPipeline(
         const blueprint =
             await getBlueprint(
                 prompt,
-                emit
+                emitAndRecord
             );
 
         /*
           STEP 2
-          CODE GENERATION
+          INSTALL DEPENDENCIES
         */
 
-        const {
-            code,
-            savedFile
-        } = await generateCode(
-            blueprint,
-            emit
+        emitAndRecord(
+
+            'status',
+
+            {
+
+                stage: 'deps',
+
+                message:
+                    '📦 Installing dependencies...'
+            }
+        );
+
+        installDeps(
+            blueprint.dependencies
         );
 
         /*
           STEP 3
-          EXECUTION
+          GENERATE CODE
         */
 
-        try {
+        let {
 
-            await executeAgent(
-                blueprint,
-                savedFile,
-                emit
-            );
+            code,
 
-        } catch (err) {
+            savedFile
 
-            emit('error', {
+        } = await generateCode(
 
-                message:
-                    err.toString()
-            });
+            blueprint,
 
-            emit('done', {
-
-                success: false
-            });
-
-            return;
-        }
+            emitAndRecord
+        );
 
         /*
           STEP 4
-          PACKAGING
+          TESTS
+        */
+
+        let {
+
+            results,
+
+            allPassed
+
+        } = await runTests(
+
+            blueprint,
+
+            savedFile,
+
+            emitAndRecord
+        );
+
+        /*
+          STEP 5
+          SELF-HEAL LOOP
+        */
+
+        let iteration = 1;
+
+        while (
+
+            !allPassed &&
+
+            iteration <= (
+                parseInt(
+                    process.env.MAX_FIX_ITERATIONS
+                ) || 3
+            )
+        ) {
+
+            const failed =
+                results.filter(
+
+                    result =>
+                        !result.passed
+                );
+
+            const fix =
+                await fixCode(
+
+                    code,
+
+                    blueprint,
+
+                    failed,
+
+                    savedFile,
+
+                    emitAndRecord,
+
+                    iteration
+                );
+
+            code =
+                fix.fixedCode;
+
+            ({
+                results,
+                allPassed
+
+            } = await runTests(
+
+                blueprint,
+
+                savedFile,
+
+                emitAndRecord
+            ));
+
+            iteration++;
+        }
+
+        /*
+          STEP 6
+          PACKAGE
         */
 
         try {
@@ -352,47 +911,120 @@ export async function runPipeline(
 
                 savedFile,
 
-                emit
+                emitAndRecord
             );
 
         } catch (err) {
 
-            emit('error', {
+            emitAndRecord(
 
-                message:
-                    err.toString()
-            });
+                'error',
 
-            emit('done', {
+                {
 
-                success: false
-            });
+                    message:
+                        err.toString()
+                }
+            );
+
+            emitAndRecord(
+
+                'done',
+
+                {
+
+                    success: false
+                }
+            );
 
             return;
         }
 
         /*
+          FINAL EVENT
+        */
+
+        emitAndRecord(
+
+            'agent_ready',
+
+            {
+
+                agentName:
+                    blueprint.agent_name,
+
+                allPassed,
+
+                finalResults:
+                    results
+            }
+        );
+
+        /*
+          SAVE CACHE
+        */
+
+        await fs.promises.writeFile(
+
+            cachePath,
+
+            JSON.stringify(
+
+                {
+
+                    createdAt:
+                        Date.now(),
+
+                    prompt,
+
+                    events:
+                        recordedEvents
+
+                },
+
+                null,
+
+                2
+            )
+        );
+
+        /*
           DONE
         */
 
-        emit('done', {
+        emitAndRecord(
 
-            success: true
-        });
+            'done',
+
+            {
+
+                success: true
+            }
+        );
 
     } catch (err) {
 
         console.log(err);
 
-        emit('error', {
+        emit(
 
-            message:
-                err.toString()
-        });
+            'error',
 
-        emit('done', {
+            {
 
-            success: false
-        });
+                message:
+                    err.toString()
+            }
+        );
+
+        emit(
+
+            'done',
+
+            {
+
+                success: false
+            }
+        );
     }
 }

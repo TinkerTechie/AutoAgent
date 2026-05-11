@@ -1,40 +1,63 @@
 import fs from 'fs';
-import { createRequire } from 'module';
 
-const require = createRequire(import.meta.url);
+import * as archiverModule
+    from 'archiver';
 
-const archiver = require('archiver');
+const archiver =
+    archiverModule.default ||
+    archiverModule;
 
 export function zipPackage(
-    sourceFolder,
-    outputZip
+    sourceDir,
+    outPath
 ) {
 
     return new Promise(
-        (resolve, reject) => {
+
+        (
+            resolve,
+            reject
+        ) => {
 
             const output =
-                fs.createWriteStream(outputZip);
+                fs.createWriteStream(
+                    outPath
+                );
 
             const archive =
-                archiver('zip', {
-                    zlib: { level: 9 }
-                });
+                archiver(
+                    'zip',
+                    {
+                        zlib: {
+                            level: 9
+                        }
+                    }
+                );
 
             output.on(
                 'close',
-                () => resolve()
+
+                () => {
+
+                    resolve();
+                }
             );
 
             archive.on(
                 'error',
-                err => reject(err)
+
+                err => {
+
+                    reject(err);
+                }
             );
 
-            archive.pipe(output);
+            archive.pipe(
+                output
+            );
 
             archive.directory(
-                sourceFolder,
+                sourceDir,
                 false
             );
 

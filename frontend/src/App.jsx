@@ -1,8 +1,11 @@
-import { useState } from 'react';
-import DownloadAgent
-  from './components/DownloadAgent';
+import { useState, useEffect }
+  from 'react';
+
 import { useSSE }
   from './hooks/useSSE';
+
+import PromptInput
+  from './components/PromptInput';
 
 import PipelineStatus
   from './components/PipelineStatus';
@@ -10,170 +13,338 @@ import PipelineStatus
 import CodeViewer
   from './components/CodeViewer';
 
-import ExecutionConsole
-  from './components/ExecutionConsole';
-import WorkflowGraph
-  from './components/WorkflowGraph';
-function App() {
+import TestResults
+  from './components/TestResults';
+import AgentHistory
+  from './components/AgentHistory';
+
+const DEMO_PROMPTS = [
+
+  'Build a Python agent that reads a CSV and returns column statistics',
+
+  'Build a Python agent that fetches the current Bitcoin price',
+
+  'Build a Python AI agent that summarises long text using an LLM',
+
+  'Build a Python agent that checks if a URL is reachable'
+];
+
+export default function App() {
+
+  const {
+
+    events,
+
+    isRunning,
+
+    blueprint,
+
+    code,
+
+    testResults,
+
+    isComplete,
+
+    downloadZip,
+
+    agentReady,
+
+    startBuild
+
+  } = useSSE();
 
   const [prompt, setPrompt] =
     useState('');
+  useEffect(() => {
 
-  const [url, setUrl] =
-    useState('');
+    if (
+      isComplete &&
+      blueprint
+    ) {
 
-  const events = useSSE(url);
+      const history =
+        JSON.parse(
 
-  function handleBuild() {
+          localStorage.getItem(
+            'agent_history'
+          ) || '[]'
+        );
 
-    if (!prompt) return;
+      history.unshift({
 
-    const encoded =
-      encodeURIComponent(prompt);
+        name:
+          blueprint.agent_name,
 
-    setUrl(
-      `http://localhost:3001/api/build?prompt=${encoded}`
-    );
-  }
+        description:
+          blueprint.description,
 
-  /*
-    Extract generated code
-  */
+        ts:
+          Date.now(),
 
-  const codeEvent =
-    events.find(
-      e => e.type === 'code_result'
-    );
+        testsPassed:
+          testResults.filter(
+            result =>
+              result.passed
+          ).length,
 
-  const generatedCode =
-    codeEvent?.data?.preview
-      ?.replace(/```python/g, '')
-      ?.replace(/```/g, '')
-      ?.trim();
+        testsTotal:
+          testResults.length
+      });
 
-  /*
-    Extract execution output
-  */
+      localStorage.setItem(
 
-  const executionEvent =
-    events.find(
-      e =>
-        e.type ===
-        'execution_result'
-    );
-  const savedEvent =
-    events.find(
-      e => e.type === 'saved'
-    );
+        'agent_history',
 
-  const savedFilename =
-    savedEvent?.data?.filename;
+        JSON.stringify(
+          history.slice(0, 20)
+        )
+      );
+    }
 
-  const executionOutput =
-    executionEvent?.data?.output;
-
+  }, [isComplete]);
   return (
 
     <div
+
       style={{
+
         minHeight: '100vh',
+
         background: '#0f172a',
+
         color: 'white',
-        padding: '40px',
-        fontFamily: 'sans-serif'
+
+        padding: 24,
+
+        fontFamily:
+          'Inter, system-ui'
       }}
     >
 
+      {/* HEADER */}
+
       <div
         style={{
-          maxWidth: '1200px',
-          margin: '0 auto'
+          marginBottom: 24
         }}
       >
 
         <h1
           style={{
-            fontSize: '42px'
+
+            fontSize: 32,
+
+            fontWeight: 700,
+
+            marginBottom: 8
           }}
         >
-          AI Agent Builder
+
+          AgentForge
         </h1>
 
         <p
           style={{
+
             color: '#94a3b8',
-            marginBottom: '30px'
+
+            maxWidth: 700,
+
+            lineHeight: 1.6
           }}
         >
-          Autonomous AI planning,
-          code generation,
-          and execution platform.
+
+          Describe an AI agent and watch the system design,
+          code, test, self-heal, and package it automatically.
+
         </p>
+      </div>
 
-        <textarea
-          rows="5"
-          placeholder="Describe your AI agent..."
-          value={prompt}
-          onChange={(e) =>
-            setPrompt(e.target.value)
+      {/* PROMPT */}
+
+      <PromptInput
+
+        prompt={prompt}
+
+        onPromptChange={
+          setPrompt
+        }
+
+        onBuild={() =>
+          startBuild(prompt)
+        }
+
+        isRunning={
+          isRunning
+        }
+
+        demoPrompts={
+          DEMO_PROMPTS
+        }
+
+        onDemoSelect={
+          demoPrompt => {
+
+            setPrompt(
+              demoPrompt
+            );
+
+            startBuild(
+              demoPrompt
+            );
           }
-          style={{
-            width: '100%',
-            padding: '16px',
-            borderRadius: '12px',
-            border: '1px solid #334155',
-            background: '#111827',
-            color: 'white',
-            fontSize: '16px',
-            resize: 'none'
-          }}
-        />
+        }
+      />
 
-        <button
-          onClick={handleBuild}
-          style={{
-            marginTop: '20px',
-            padding: '14px 24px',
-            borderRadius: '10px',
-            border: 'none',
-            background: '#3b82f6',
-            color: 'white',
-            fontSize: '16px',
-            cursor: 'pointer'
-          }}
-        >
-          Build Agent
-        </button>
+      {/* SUCCESS BAR */}
 
-        <div
-          style={{
-            marginTop: '40px'
-          }}
-        >
-          <WorkflowGraph
-            events={events}
-          />
-          <PipelineStatus
-            events={events}
-          />
+      {
+        isComplete &&
+        agentReady && (
+
+          <div
+
+            style={{
+
+              marginTop: 20,
+
+              padding: 16,
+
+              borderRadius: 12,
+
+              background:
+                '#052e16',
+
+              border:
+                '1px solid #166534'
+            }}
+          >
+
+            <div
+              style={{
+                fontWeight: 600
+              }}
+            >
+
+              ✅ Agent Ready
+            </div>
+
+            <div
+              style={{
+                marginTop: 8,
+                color: '#bbf7d0'
+              }}
+            >
+
+              {agentReady.agentName}
+            </div>
+
+            {
+              downloadZip && (
+
+                <a
+
+                  href={
+                    `http://localhost:3001/download/${downloadZip}`
+                  }
+
+                  target="_blank"
+
+                  rel="noreferrer"
+
+                  style={{
+
+                    display:
+                      'inline-block',
+
+                    marginTop: 12,
+
+                    padding:
+                      '10px 16px',
+
+                    borderRadius: 8,
+
+                    background:
+                      '#22c55e',
+
+                    color: 'black',
+
+                    textDecoration:
+                      'none',
+
+                    fontWeight: 600
+                  }}
+                >
+
+                  Download Agent ZIP
+                </a>
+              )
+            }
+          </div>
+        )
+      }
+
+      {/* MAIN GRID */}
+
+      <div
+
+        style={{
+
+          display: 'grid',
+
+          gridTemplateColumns:
+            '1.2fr 0.8fr',
+
+          gap: 16,
+
+          marginTop: 20
+        }}
+      >
+
+        {/* LEFT PANEL */}
+
+        <div>
 
           <CodeViewer
-            code={generatedCode}
-          />
 
-          <ExecutionConsole
-            output={executionOutput}
-          />
-          <DownloadAgent
-            filename={savedFilename}
+            code={code}
+
+            agentName={
+              blueprint?.agent_name
+            }
           />
 
         </div>
 
-      </div>
+        {/* RIGHT PANEL */}
 
+        <div
+
+          style={{
+
+            display: 'flex',
+
+            flexDirection: 'column',
+
+            gap: 16
+          }}
+        >
+
+          <PipelineStatus
+
+            events={events}
+
+            isRunning={isRunning}
+          />
+
+          <TestResults
+
+            results={testResults}
+          />
+
+        </div>
+      </div>
+      <AgentHistory />
     </div>
   );
 }
-
-export default App;
